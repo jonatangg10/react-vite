@@ -17,7 +17,7 @@ const Footer = () => {
         {/* Navigation Links with Icons */}
         <nav className="flex flex-wrap justify-center gap-6 text-sm font-medium">
           <a href="#" className="flex items-center gap-1 hover:text-white">
-            About
+            Acerca de mí
           </a>
           <a href="#" className="flex items-center gap-1 hover:text-white">
             Blog

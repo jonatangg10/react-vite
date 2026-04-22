@@ -6,9 +6,9 @@ const logos = [
   "/jenkins.svg",
   "/azuredevops.svg",
   "/grafana.png",
-  "/jenkins.svg",
-  "/jenkins.svg",
-  "/jenkins.svg",
+  "/banner_sonarque.png",
+  "/banner_elastic.png",
+  "/linux.png",
 ];
 
 const LogoCarousel = () => {
