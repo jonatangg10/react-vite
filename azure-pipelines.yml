@@ -1,0 +1,207 @@
+trigger:
+- main
+
+variables:
+- group: Laboratorio
+- name: system.debug
+  value: true
+
+stages:
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    displayName: 'Run build'
+    pool:
+      name: Laboratorio
+
+    steps:
+    - checkout: self
+
+    - task: Bash@3
+      displayName: 'Docker version'
+      inputs:
+        targetType: 'inline'
+        script: |
+          docker --version
+
+    - task: Bash@3
+      displayName: "Configurar JDK GraalVM 21"
+      inputs:
+        targetType: "inline"
+        script: |
+          JDK_PATH="/app/graalvm-jdk-21.0.9+7.1"
+          echo ">>> Configurando entorno Java para el agente"
+          echo "##vso[task.setvariable variable=JAVA_HOME]$JDK_PATH"
+          echo "##vso[task.prependpath]$JDK_PATH/bin"
+          echo "Agente configurado con JAVA_HOME=$JDK_PATH"
+
+    - task: Bash@3
+      displayName: 'Listar archivos'
+      inputs:
+        targetType: 'inline'
+        script: |
+          ls -ltr $(Build.SourcesDirectory)
+
+    - task: qetza.replacetokens.replacetokens-task.replacetokens@6
+      displayName: 'Reemplazar variable'
+      inputs:
+        root: '$(Build.SourcesDirectory)'
+        sources: '.env'
+        tokenPattern: doubleunderscores
+
+    - task: Bash@3
+      displayName: 'Cat Reemplazar variable'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "cat $(Build.SourcesDirectory)/.env"
+          cat $(Build.SourcesDirectory)/.env
+
+    - task: Bash@3
+      displayName: 'Bash Script Asunto'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Información del pipeline:"
+          echo "Mensaje del commit: $BUILD_SOURCEVERSIONMESSAGE"
+          echo "Nombre de la rama: $BUILD_SOURCEBRANCHNAME"
+
+    - task: Bash@3
+      displayName: 'Obtener último tag válido'
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Asegura que todos los tags estén disponibles
+          git fetch --tags --force
+
+          # Debug: Listar todos los tags para diagnóstico
+          echo "=== Todos los tags disponibles ==="
+
+          git tag -l
+
+          # Filtra los tags de la rama actual (ej: 'azure-pipelines_v1.2.0')
+          BRANCH_TAG_PREFIX="$(Build.SourceBranchName)_v"
+
+          echo "Buscando tags con prefijo: $BRANCH_TAG_PREFIX"
+
+          # Obtén el último tag (usando creatordate para mayor precisión)
+          LATEST_TAG=$(git tag | grep "^$BRANCH_TAG_PREFIX" | sort -V | tail -n 1)
+
+          echo "Último tag encontrado: $LATEST_TAG"
+
+          # Exporta la variable
+          echo "##vso[task.setvariable variable=LATEST_TAG]$LATEST_TAG"
+
+    - task: Bash@3
+      displayName: 'Versionar'
+      inputs:
+        targetType: 'inline'
+        script: |
+          #!/bin/bash
+          echo $(Build.SourceBranchName)
+          echo "Tags"
+          echo $LATEST_TAG
+          brk="$(echo "${LATEST_TAG}" |awk 'BEGIN{FS="_v";} {print $2}'|awk 'BEGIN{FS="";} {print $1}')" && echo $brk
+          feat="$(echo "${LATEST_TAG}" |awk 'BEGIN{FS=".";} {print $2}')" && echo $feat
+          bugfix="$(echo "${LATEST_TAG}" |awk 'BEGIN{FS=".";} {print $3}')" && echo $bugfix
+          last_version="$(echo "${LATEST_TAG}" |awk 'BEGIN{FS="_v";} {print $2}')" && echo ${last_version}
+          echo Eventos bugfix, feat, brk
+          echo version1:"$(Build.SourceVersionMessage)"
+          event="$(echo "$(Build.SourceVersionMessage)" | awk 'BEGIN{FS=":";} {print $2}')"
+          event="$(echo "${event}" | sed 's/ //g')"
+          echo salida:${event}
+
+          if [[ -z "${event}" || ! "${event}" =~ ^(brk|feat|bugfix)$ ]]; then
+            echo "##vso[task.logissue type=error]El campo 'event' del PR no es válido o está vacío. Valor actual: '${event}'"
+            echo "ERROR: El campo 'event' del PR está vacío o no es válido (Valor: '${event}')."
+            exit 1
+          fi
+
+          if  [[ "${event}" == "brk" ]]; then
+                brk="$(($brk+1))"
+                feat=0
+                bugfix=0
+                echo "Actualizar Version brk"
+                echo $brk
+          else
+                echo "NO Actualizar Version brk"
+          fi
+          if  [[ "${event}" == "feat" ]]; then
+                feat="$(($feat+1))"
+                bugfix=0
+                echo "Actualizar Version feat"
+                echo $feat
+          else
+                  echo "NO Actualizar Version feat"
+          fi
+          if  [[ "${event}" == "bugfix" ]]; then
+                bugfix="$(($bugfix+1))"
+                echo "Actualizar Version bugfix"
+                echo $bugfix
+          else
+                echo "NO Actualizar Version bugfix"
+                echo evento:"${event}"
+          fi
+          # Definir version Semantica:
+          NAT='0|[1-9][0-9]*'
+          SEMVER_REGEX="^($NAT)+\.($NAT)+\.($NAT)+"
+          if [[ $last_version =~ $SEMVER_REGEX ]]; then
+                  echo "OK" >&2
+                  echo "Actualizar Version"
+                  VersionActualizada=v$brk"."$feat"."$bugfix
+                  VersionImagen=$brk"."$feat"."$bugfix
+                  echo ${VersionActualizada}
+                  echo ${VersionImagen}
+          else
+                  echo "Something is wrong with your version" >&2
+                  echo "Reset Version"
+                  VersionActualizada=v$(next-versionSem)
+                  VersionImagen=$(next-versionSem)
+                  echo ${VersionActualizada}
+                  echo ${VersionImagen}
+          fi
+          # Definir Nombre del pipeline:
+          echo "##vso[build.updatebuildnumber]$(Build.SourceBranchName)_${VersionActualizada}"
+          echo "##vso[task.setvariable variable=NombreImagen]$(Build.SourceBranchName)-${VersionImagen}"
+          # Al final del script, guarda la variable como output
+          echo "##vso[task.setvariable variable=VersionActualizada]${VersionActualizada}"
+          echo "##vso[task.setvariable variable=VersionImagen]${VersionImagen}"
+          echo "##vso[task.setvariable variable=sanitizedVersion]$(echo "${VersionActualizada}" | tr -cd '[:alnum:]._-')"
+
+    - task: Bash@3
+      displayName: 'Generar versión basada en Build_Id'
+      inputs:
+        targetType: 'inline'
+        script: |
+          IMAGE_VERSION=$(Build.BuildId)
+          echo "IMG generada: $(VersionImagen)"
+          echo "Ambiente: $(Build.SourceBranchName)"
+          echo "Versión generada: $(VersionActualizada)"
+          echo "##vso[task.setvariable variable=IMAGE_VERSION]$(IMAGE_VERSION)"
+          echo "NombreImagen: $(NombreImagen)"
+          echo "Nombre del Repo: $(Build.Repository.Name)"
+
+    - task: SonarQubePrepare@8
+      displayName: 'Prepare analysis on SonarQube Server'
+      inputs:
+        SonarQube: 'Laboratorio Jonatan'
+        scannerMode: 'cli'
+        configMode: 'file'
+        configFile: '$(Build.SourcesDirectory)/Sonarque/sonar-project.properties'
+
+    - task: SonarQubeAnalyze@8
+      displayName: 'Run Code Analysis'
+      inputs:
+        jdkversion: 'JAVA_HOME'
+
+    - task: SonarQubePublish@8
+      displayName: 'Publish Quality Gate Result'
+      inputs:
+        pollingTimeoutSec: '300'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Pblish Pipeline Artifact'
+      inputs:
+        targetPath: '$(Build.SourcesDirectory)'
+        artifact: 'entrega'
