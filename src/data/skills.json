@@ -1,0 +1,26 @@
+[
+  {
+    "title": "-p 8080:80",
+    "description": "Mapea el puerto 8080 del host al puerto 80 del contenedor en Docker."
+  },
+  {
+    "title": "chmod 755",
+    "description": "Permisos: propietario (rwx), grupo/otros (rx). Común para scripts ejecutables."
+  },
+  {
+    "title": "CIA",
+    "description": "Confidencialidad, Integridad y Disponibilidad: pilares de seguridad."
+  },
+  {
+    "title": "OWASP",
+    "description": "Organización que promueve buenas prácticas de seguridad en aplicaciones web."
+  },
+  {
+    "title": "OWASP Top 10",
+    "description": "Principales 10 riesgos de seguridad en aplicaciones web, actualizados periódicamente."
+  },
+  {
+    "title": "SAST / DAST",
+    "description": "SAST: analiza código estático. DAST: prueba la app en ejecución desde el exterior."
+  }
+]
