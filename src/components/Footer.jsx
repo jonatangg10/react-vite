@@ -16,23 +16,17 @@ const Footer = () => {
         
         {/* Navigation Links with Icons */}
         <nav className="flex flex-wrap justify-center gap-6 text-sm font-medium">
-          <a href="#" className="flex items-center gap-1 hover:text-white">
+          <a href="#home" className="flex items-center gap-1 hover:text-white">
+            Inicio
+          </a>
+          <a href="#about" className="flex items-center gap-1 hover:text-white">
             Acerca de mí
           </a>
-          <a href="#" className="flex items-center gap-1 hover:text-white">
-            Blog
+          <a href="#skills" className="flex items-center gap-1 hover:text-white">
+            Habilidades
           </a>
-          <a href="#" className="flex items-center gap-1 hover:text-white">
-            Jobs
-          </a>
-          <a href="#" className="flex items-center gap-1 hover:text-white">
-            Press
-          </a>
-          <a href="#" className="flex items-center gap-1 hover:text-white">
-            Accessibility
-          </a>
-          <a href="#" className="flex items-center gap-1 hover:text-white">
-            Partners
+          <a href="#contacto" className="flex items-center gap-1 hover:text-white">
+            Contacto
           </a>
         </nav>
         
@@ -49,9 +43,6 @@ const Footer = () => {
           </a>
           <a target="_blank" href={instagramURL} className="hover:text-white">
             <FaInstagram className="h-5 w-5" />
-          </a>
-          <a target="_blank" href={youtubeURL} className="hover:text-white">
-            <FaYoutube className="h-5 w-5" />
           </a>
         </div>
         
